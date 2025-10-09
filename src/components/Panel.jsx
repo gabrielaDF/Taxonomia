@@ -57,17 +57,36 @@ export default function Panel({
 
       {/* Escalera */}
       <div className="p-4">
-        <div className="relative h-20 mb-4">
-          <div className="absolute top-0 left-0 w-1/4 h-20 bg-red-700 rounded-lg flex items-center justify-center text-white font-bold text-2xl shadow border border-black/30">
+        <div className="relative h-20 mb-4 overflow-visible">
+          {/* Peldaño 1 */}
+          <div
+            className="absolute top-0 left-0 w-[28%] h-20 bg-red-700 border border-black/30 rounded-lg 
+                  flex items-center justify-center text-white font-extrabold text-2xl shadow-lg z-[1]"
+          >
             1
           </div>
-          <div className="absolute top-0 left-1/4 w-1/4 h-20 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold text-2xl shadow border border-black/30">
+
+          {/* Peldaño 2 */}
+          <div
+            className="absolute top-0 left-[25%] w-[28%] h-20 bg-orange-600 border border-black/30 rounded-lg 
+                  flex items-center justify-center text-white font-extrabold text-2xl shadow-lg z-[2]"
+          >
             2
           </div>
-          <div className="absolute top-0 left-2/4 w-1/4 h-20 bg-yellow-500 rounded-lg flex items-center justify-center text-white font-bold text-2xl shadow border border-black/30">
+
+          {/* Peldaño 3 */}
+          <div
+            className="absolute top-0 left-[50%] w-[28%] h-20 bg-yellow-500 border border-black/30 rounded-lg 
+                  flex items-center justify-center text-white font-extrabold text-2xl shadow-lg z-[3]"
+          >
             3
           </div>
-          <div className="absolute top-0 left-3/4 w-1/4 h-20 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold text-2xl shadow border border-black/30">
+
+          {/* Peldaño 4 */}
+          <div
+            className="absolute top-0 left-[75%] w-[25%] h-20 bg-green-600 border border-black/30 rounded-lg 
+                  flex items-center justify-center text-white font-extrabold text-2xl shadow-lg z-[4]"
+          >
             4
           </div>
         </div>
