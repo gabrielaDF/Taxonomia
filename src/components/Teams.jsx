@@ -35,8 +35,8 @@ export default function Teams({
             key={i}
             className={`flex justify-between items-center px-3 py-2 rounded-lg border transition-all duration-300 ${
               i === activeTeam
-                ? "border-violet-900 bg-slate-900 shadow-[0_0_10px_#14b8a6]"
-                : "border-slate-600 bg-slate-900/70"
+                ? "border-violet-400 bg-slate-900 shadow-[0_0_10px_#14b8a6]"
+                : "border-slate-900 bg-slate-900/70"
             }`}
           >
             <input

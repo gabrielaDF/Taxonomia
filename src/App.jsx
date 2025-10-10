@@ -134,7 +134,18 @@ export default function App() {
     setActiveTeam((prevActive) => {
       const next = (prevActive + 1) % teams.length;
       const nextName = teams[next]?.name || `Equipo ${next + 1}`;
-      setTimeout(() => setTurnModal(`🎯 Turno de ${nextName}`), 0);
+      const failedName = teams[prevActive]?.name || `Equipo ${prevActive + 1}`;
+
+      // Mostrar modal con ambos nombres
+      setTimeout(
+        () =>
+          setTurnModal({
+            failed: `❌ ${failedName} falló`,
+            next: `🎯 Turno de ${nextName}`,
+          }),
+        0
+      );
+
       return next;
     });
   }
@@ -282,13 +293,13 @@ export default function App() {
       {/* Modal de cambio de turno */}
       {turnModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-sm w-full text-center shadow-xl">
-            <h2 className="text-xl font-bold text-teal-400 mb-2">
-              {turnModal}
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-sm w-full text-center shadow-xl animate-fade-in">
+            <h2 className="text-xl font-bold text-red-400 mb-2">
+              {turnModal.failed}
             </h2>
-            <p className="text-slate-300 mb-4">
-              Presiona Aceptar para continuar
-            </p>
+            <h3 className="text-lg font-semibold text-teal-400 mb-4">
+              {turnModal.next}
+            </h3>
             <button
               onClick={() => setTurnModal(null)}
               className="px-4 py-2 rounded-lg border border-teal-500 text-teal-200 bg-slate-800 hover:bg-teal-600 hover:text-white font-semibold transition"
