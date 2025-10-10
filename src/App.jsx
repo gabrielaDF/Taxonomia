@@ -19,6 +19,7 @@ export default function App() {
   const [dimension, setDimension] = useState("saber");
   const [bankVerbs, setBankVerbs] = useState(() => allVerbsWithLevels("saber"));
   const [levels, setLevels] = useState({ 1: [], 2: [], 3: [], 4: [] });
+  const [turnModal, setTurnModal] = useState(null);
 
   // Equipos
   const [teams, setTeams] = useState([
@@ -57,6 +58,10 @@ export default function App() {
     const id = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearInterval(id);
   }, [running, timeLeft]);
+
+  useEffect(() => {
+    console.log("Equipo activo:", activeTeam, teams[activeTeam]);
+  }, [activeTeam, teams]);
 
   // Dimensión
   function switchDimension(dim) {
@@ -103,10 +108,16 @@ export default function App() {
       ding();
       if (navigator.vibrate) navigator.vibrate(60);
 
-      const restantes = leftCount - 1;
-      if (restantes <= 0) endRound();
+      // Calcular restantes dinámicamente (no usar leftCount cerrado)
+      const totalNow = Object.values(DATA[dimension]).reduce(
+        (a, arr) => a + arr.length,
+        0
+      );
+      const okNow =
+        Object.values(levels).reduce((a, arr) => a + arr.length, 0) + 1;
+      if (totalNow - okNow <= 0) endRound();
 
-      // ⚠️ El mismo equipo continúa jugando si acierta
+      // El mismo equipo continúa jugando si acierta
       return;
     }
 
@@ -116,18 +127,16 @@ export default function App() {
 
     // Penalización solo si está en modo examen
     if (examMode) {
-      setTeams((prev) => {
-        const updated = [...prev];
-        updated[activeTeam] = {
-          ...updated[activeTeam],
-          score: updated[activeTeam].score - 5,
-        };
-        return updated;
-      });
+      addPoints(-5);
     }
 
     // 🔁 Cambio de turno solo si se equivoca
-    setActiveTeam((prev) => (prev + 1) % teams.length);
+    setActiveTeam((prevActive) => {
+      const next = (prevActive + 1) % teams.length;
+      const nextName = teams[next]?.name || `Equipo ${next + 1}`;
+      setTimeout(() => setTurnModal(`🎯 Turno de ${nextName}`), 0);
+      return next;
+    });
   }
 
   // Banco: ordenar / desordenar
@@ -151,13 +160,14 @@ export default function App() {
 
   // Equipos
   function addPoints(points) {
-    setTeams((prev) => {
-      const copy = [...prev];
-      copy[activeTeam] = {
-        ...copy[activeTeam],
-        score: copy[activeTeam].score + points,
+    setTeams((prevTeams) => {
+      const updated = [...prevTeams];
+      // usamos el activeTeam más reciente mediante callback
+      updated[activeTeam] = {
+        ...updated[activeTeam],
+        score: updated[activeTeam].score + points,
       };
-      return copy;
+      return updated;
     });
   }
 
@@ -269,6 +279,25 @@ export default function App() {
         onReset={resetGame}
         message={finalMsg}
       />
+      {/* Modal de cambio de turno */}
+      {turnModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-sm w-full text-center shadow-xl">
+            <h2 className="text-xl font-bold text-teal-400 mb-2">
+              {turnModal}
+            </h2>
+            <p className="text-slate-300 mb-4">
+              Presiona Aceptar para continuar
+            </p>
+            <button
+              onClick={() => setTurnModal(null)}
+              className="px-4 py-2 rounded-lg border border-teal-500 text-teal-200 bg-slate-800 hover:bg-teal-600 hover:text-white font-semibold transition"
+            >
+              ✅ Aceptar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
