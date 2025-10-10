@@ -73,10 +73,11 @@ export default function App() {
       Object.values(levels)
         .flat()
         .find((v) => v.verb === verb);
+
     if (!fromLevels) return;
 
+    // Si lo soltamos en el banco → regresar
     if (target === "bank") {
-      // devolver al banco
       setBankVerbs((prev) => [...prev, fromLevels]);
       setLevels((prev) => {
         const copy = { ...prev };
@@ -88,26 +89,45 @@ export default function App() {
       return;
     }
 
-    // Validación (solo si cae en un nivel)
-    if (fromLevels.level === targetLevel) {
-      // ✅ acierto
+    const isCorrect = fromLevels.level === targetLevel;
+
+    if (isCorrect) {
+      // ✅ ACIERTO
       setLevels((prev) => ({
         ...prev,
         [targetLevel]: [...prev[targetLevel], fromLevels],
       }));
+
       setBankVerbs((prev) => prev.filter((v) => v.verb !== verb));
-      addPoints(10);
+      addPoints(+10);
       ding();
-      checkWin(leftCount - 1); // uno menos al colocar correcto
-    } else {
-      // ❌ error
-      buzz();
-      if (examMode) {
-        addPoints(-5);
-        setActiveTeam((p) => (p + 1) % teams.length);
-      }
-      // no movemos, se queda donde estaba (en banco)
+      if (navigator.vibrate) navigator.vibrate(60);
+
+      const restantes = leftCount - 1;
+      if (restantes <= 0) endRound();
+
+      // ⚠️ El mismo equipo continúa jugando si acierta
+      return;
     }
+
+    // ❌ ERROR
+    buzz();
+    if (navigator.vibrate) navigator.vibrate(80);
+
+    // Penalización solo si está en modo examen
+    if (examMode) {
+      setTeams((prev) => {
+        const updated = [...prev];
+        updated[activeTeam] = {
+          ...updated[activeTeam],
+          score: updated[activeTeam].score - 5,
+        };
+        return updated;
+      });
+    }
+
+    // 🔁 Cambio de turno solo si se equivoca
+    setActiveTeam((prev) => (prev + 1) % teams.length);
   }
 
   // Banco: ordenar / desordenar
