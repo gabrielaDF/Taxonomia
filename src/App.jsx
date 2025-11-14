@@ -28,12 +28,15 @@ export default function App() {
   ]);
   const [activeTeam, setActiveTeam] = useState(0);
 
-  // Timer & Examen
-  const [timeLeft, setTimeLeft] = useState(300); // 5:00
+  // Temporizadores por equipo
   const [running, setRunning] = useState(false);
-  const [examMode, setExamMode] = useState(false);
+  const [startModalOpen, setStartModalOpen] = useState(true);
+  const [teamTimers, setTeamTimers] = useState(
+    teams.map(() => ({ elapsed: 0, running: false }))
+  );
 
-  // Modal
+  // Modal y modo examen
+  const [examMode, setExamMode] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [finalMsg, setFinalMsg] = useState("");
 
@@ -48,20 +51,40 @@ export default function App() {
   );
   const leftCount = totalCount - okCount;
 
-  // Timer
+  // 🔁 Efecto para incrementar el tiempo del equipo activo
   useEffect(() => {
     if (!running) return;
-    if (timeLeft <= 0) {
-      endRound();
-      return;
-    }
-    const id = setInterval(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearInterval(id);
-  }, [running, timeLeft]);
 
+    const id = setInterval(() => {
+      setTeamTimers((prev) =>
+        prev.map((t, i) =>
+          i === activeTeam && t.running ? { ...t, elapsed: t.elapsed + 1 } : t
+        )
+      );
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [running, activeTeam]);
+
+  // 🔄 Sincronizar qué cronómetro está corriendo
   useEffect(() => {
-    console.log("Equipo activo:", activeTeam, teams[activeTeam]);
-  }, [activeTeam, teams]);
+    setTeamTimers((prev) =>
+      prev.map((t, i) => ({
+        ...t,
+        running: running && i === activeTeam,
+      }))
+    );
+  }, [activeTeam, running]);
+
+  // 🔧 Sincronizar longitud de timers con equipos
+  useEffect(() => {
+    setTeamTimers((prev) =>
+      Array.from({ length: teams.length }, (_, i) => ({
+        elapsed: prev[i]?.elapsed ?? 0,
+        running: prev[i]?.running ?? false,
+      }))
+    );
+  }, [teams]);
 
   // Dimensión
   function switchDimension(dim) {
@@ -70,8 +93,9 @@ export default function App() {
     setLevels({ 1: [], 2: [], 3: [], 4: [] });
   }
 
-  // Drag & Drop
+  // Drag & Drop principal
   function handleDrop(targetLevel, verb, target = "level") {
+    if (!running) return; // No hacer nada si no está corriendo el juego
     const fromBank = bankVerbs.find((v) => v.verb === verb);
     const fromLevels =
       fromBank ||
@@ -108,7 +132,7 @@ export default function App() {
       ding();
       if (navigator.vibrate) navigator.vibrate(60);
 
-      // Calcular restantes dinámicamente (no usar leftCount cerrado)
+      // Verificar si ya completó todos los verbos
       const totalNow = Object.values(DATA[dimension]).reduce(
         (a, arr) => a + arr.length,
         0
@@ -117,40 +141,30 @@ export default function App() {
         Object.values(levels).reduce((a, arr) => a + arr.length, 0) + 1;
       if (totalNow - okNow <= 0) endRound();
 
-      // El mismo equipo continúa jugando si acierta
-      return;
+      return; // mismo equipo continúa
     }
 
     // ❌ ERROR
     buzz();
     if (navigator.vibrate) navigator.vibrate(80);
+    if (examMode) addPoints(-5);
 
-    // Penalización solo si está en modo examen
-    if (examMode) {
-      addPoints(-5);
-    }
-
-    // 🔁 Cambio de turno solo si se equivoca
+    // 🔁 Cambio de turno (sin manipular timers manualmente)
     setActiveTeam((prevActive) => {
       const next = (prevActive + 1) % teams.length;
       const nextName = teams[next]?.name || `Equipo ${next + 1}`;
       const failedName = teams[prevActive]?.name || `Equipo ${prevActive + 1}`;
 
-      // Mostrar modal con ambos nombres
-      setTimeout(
-        () =>
-          setTurnModal({
-            failed: `❌ ${failedName} falló`,
-            next: `🎯 Turno de ${nextName}`,
-          }),
-        0
-      );
+      setTurnModal({
+        failed: `❌ ${failedName} falló`,
+        next: `🎯 Turno de ${nextName}`,
+      });
 
       return next;
     });
   }
 
-  // Banco: ordenar / desordenar
+  // Ordenar / desordenar banco
   function sortBankAZ() {
     setBankVerbs((prev) =>
       [...prev].sort((a, b) =>
@@ -169,11 +183,10 @@ export default function App() {
     });
   }
 
-  // Equipos
+  // Puntuación
   function addPoints(points) {
     setTeams((prevTeams) => {
       const updated = [...prevTeams];
-      // usamos el activeTeam más reciente mediante callback
       updated[activeTeam] = {
         ...updated[activeTeam],
         score: updated[activeTeam].score + points,
@@ -182,17 +195,29 @@ export default function App() {
     });
   }
 
-  // Fin de ronda + bonus por tiempo
+  // Fin de ronda
   function endRound() {
     setRunning(false);
-    // otorgar bonus (1 punto cada 15s) a ganadores actuales
+
     const maxScore = Math.max(...teams.map((t) => t.score));
     const winnersIdx = teams
       .map((t, i) => ({ i, score: t.score }))
       .filter((t) => t.score === maxScore)
       .map((t) => t.i);
 
-    const timeBonus = Math.floor(timeLeft / 15);
+    // Calcular equipo más rápido
+    const fastest = teamTimers.reduce(
+      (min, t, i) => (t.elapsed < teamTimers[min].elapsed ? i : min),
+      0
+    );
+    const fastestName = teams[fastest]?.name || `Equipo ${fastest + 1}`;
+
+    // Bonus de velocidad
+    const timeBonus = Math.max(
+      0,
+      Math.floor((300 - teamTimers[fastest].elapsed) / 15)
+    );
+
     const withBonus = teams.map((t, i) =>
       winnersIdx.includes(i) ? { ...t, score: t.score + timeBonus } : t
     );
@@ -207,7 +232,11 @@ export default function App() {
         ? ` | 🏆 Ganador: ${winnersAfter[0].name}`
         : " | 🤝 ¡Empate!");
 
-    setFinalMsg(`Fin de la ronda. ${summary}`);
+    setFinalMsg(
+      `Fin de la ronda. ${summary} 🕓 Más rápido: ${fastestName} (${Math.floor(
+        teamTimers[fastest].elapsed / 60
+      )}m ${teamTimers[fastest].elapsed % 60}s)`
+    );
     setModalOpen(true);
   }
 
@@ -217,23 +246,22 @@ export default function App() {
     setLevels({ 1: [], 2: [], 3: [], 4: [] });
     setTeams((prev) => prev.map((t) => ({ ...t, score: 0 })));
     setActiveTeam(0);
-    setTimeLeft(300);
+    setTeamTimers(teams.map(() => ({ elapsed: 0, running: false })));
     setRunning(false);
     setExamMode(false);
     setModalOpen(false);
     setFinalMsg("");
   }
 
-  // Cambiar cantidad de equipos (2-4)
+  // Cambiar cantidad de equipos
   function applyTeamCount(n) {
     const count = Math.min(4, Math.max(2, n));
-    setTeams((prev) => {
-      const next = Array.from({ length: count }, (_, i) => ({
+    setTeams((prev) =>
+      Array.from({ length: count }, (_, i) => ({
         name: prev[i]?.name ?? `Equipo ${i + 1}`,
         score: prev[i]?.score ?? 0,
-      }));
-      return next;
-    });
+      }))
+    );
     setActiveTeam(0);
   }
 
@@ -249,7 +277,6 @@ export default function App() {
             levels={levels}
             onDrop={handleDrop}
             examMode={examMode}
-            // HUD
             okCount={okCount}
             totalCount={totalCount}
             leftCount={leftCount}
@@ -260,15 +287,12 @@ export default function App() {
             onDrop={(verb) => handleDrop(null, verb, "bank")}
             onSortAZ={sortBankAZ}
             onShuffle={shuffleBank}
-            disabledShuffle={examMode && running}
             dimension={dimension}
           />
         </div>
 
         <div className="space-y-6">
           <Timer
-            timeLeft={timeLeft}
-            setTimeLeft={setTimeLeft}
             running={running}
             setRunning={setRunning}
             examMode={examMode}
@@ -280,16 +304,19 @@ export default function App() {
             activeTeam={activeTeam}
             setActiveTeam={setActiveTeam}
             onApplyTeamCount={applyTeamCount}
+            teamTimers={teamTimers}
           />
         </div>
       </main>
 
+      {/* Modal final */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onReset={resetGame}
         message={finalMsg}
       />
+
       {/* Modal de cambio de turno */}
       {turnModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]">
@@ -302,6 +329,31 @@ export default function App() {
             </h3>
             <button
               onClick={() => setTurnModal(null)}
+              className="px-4 py-2 rounded-lg border border-teal-500 text-teal-200 bg-slate-800 hover:bg-teal-600 hover:text-white font-semibold transition"
+            >
+              ✅ Aceptar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal inicial */}
+      {startModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70]">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-sm w-full text-center shadow-xl animate-fade-in">
+            <h2 className="text-2xl font-bold text-teal-400 mb-4">
+              🎬 ¡Listos para comenzar!
+            </h2>
+            <p className="text-slate-300 mb-4">
+              Presiona <strong>Aceptar</strong> para iniciar el juego. Comienza
+              el turno de <strong>{teams[0].name}</strong>.
+            </p>
+            <button
+              onClick={() => {
+                setStartModalOpen(false);
+                setRunning(true);
+                setActiveTeam(0);
+              }}
               className="px-4 py-2 rounded-lg border border-teal-500 text-teal-200 bg-slate-800 hover:bg-teal-600 hover:text-white font-semibold transition"
             >
               ✅ Aceptar

@@ -4,6 +4,7 @@ export default function Teams({
   activeTeam,
   setActiveTeam,
   onApplyTeamCount,
+  teamTimers = [], // ← valor por defecto evita undefined
 }) {
   function nextTeam() {
     setActiveTeam((prev) => (prev + 1) % teams.length);
@@ -16,6 +17,7 @@ export default function Teams({
     <section className="bg-slate-800/60 border border-slate-700 rounded-xl shadow-lg backdrop-blur p-4 space-y-3">
       <h3 className="text-lg font-bold text-teal-400">👥 Equipos</h3>
 
+      {/* Selector de cantidad */}
       <div className="flex items-center gap-2">
         <label className="text-sm">N° de equipos</label>
         <select
@@ -29,37 +31,53 @@ export default function Teams({
         </select>
       </div>
 
+      {/* Lista de equipos */}
       <div className="grid gap-2">
-        {teams.map((t, i) => (
-          <div
-            key={i}
-            className={`flex justify-between items-center px-3 py-2 rounded-lg border transition-all duration-300 ${
-              i === activeTeam
-                ? "border-violet-400 bg-slate-900 shadow-[0_0_10px_#14b8a6]"
-                : "border-slate-900 bg-slate-900/70"
-            }`}
-          >
-            <input
-              value={t.name}
-              onChange={(e) =>
-                setTeams((prev) => {
-                  const copy = [...prev];
-                  copy[i] = { ...copy[i], name: e.target.value };
-                  return copy;
-                })
-              }
-              className="bg-transparent outline-none font-semibold w-24 text-slate-200"
-            />
-            <span
-              key={t.score} // <-- fuerza actualización visual cuando cambia el puntaje
-              className="font-bold text-teal-300 transition-all duration-300"
+        {teams.map((t, i) => {
+          const timer = teamTimers[i] || { elapsed: 0 }; // fallback seguro
+          const minutes = String(Math.floor(timer.elapsed / 60)).padStart(
+            2,
+            "0"
+          );
+          const seconds = String(timer.elapsed % 60).padStart(2, "0");
+
+          return (
+            <div
+              key={i}
+              className={`flex justify-between items-center px-3 py-2 rounded-lg border transition-all duration-300 ${
+                i === activeTeam
+                  ? "border-teal-400 bg-slate-900 shadow-[0_0_12px_#14b8a6] animate-pulse"
+                  : "border-slate-700 bg-slate-900/70"
+              }`}
             >
-              {t.score} pts
-            </span>
-          </div>
-        ))}
+              {/* Nombre del equipo */}
+              <input
+                value={t?.name || ""}
+                onChange={(e) =>
+                  setTeams((prev) => {
+                    const copy = [...prev];
+                    if (copy[i]) copy[i] = { ...copy[i], name: e.target.value };
+                    return copy;
+                  })
+                }
+                className="bg-transparent outline-none font-semibold w-28 text-slate-200"
+              />
+
+              {/* Puntaje y tiempo */}
+              <div className="text-right">
+                <span className="block font-bold text-teal-300">
+                  {Number.isFinite(t?.score) ? t.score : 0} pts
+                </span>
+                <span className="text-s text-slate-400">
+                  ⏱️ {minutes}:{seconds}
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
+      {/* Controles */}
       <div className="flex gap-2">
         <button
           onClick={prevTeam}
